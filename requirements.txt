@@ -1,0 +1,8 @@
+dash==2.18.2
+dash-bootstrap-components==1.6.0
+plotly==5.24.1
+pandas==2.2.3
+vaderSentiment==3.3.2
+nltk==3.9.1
+praw==7.8.1
+
