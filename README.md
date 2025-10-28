@@ -1,4 +1,4 @@
-````markdown
+
 # 🧠 Sentimentel-Dashboard  
 
 A **real-time Reddit Sentiment Analysis Dashboard** that visualizes emotional trends, live discussions, and keyword insights — all powered by **Python, Dash, and VADER**.
@@ -9,28 +9,6 @@ A **real-time Reddit Sentiment Analysis Dashboard** that visualizes emotional tr
 
 **Sentimentel-Dashboard** continuously collects live Reddit comments and performs sentiment analysis to determine how the online community feels about trending topics.  
 It updates automatically, showing positive, negative, and neutral trends in real-time with interactive charts and live comment feeds.  
-
----
-
-## 🖼️ Preview  
-
-> *(Optional: Add a screenshot of your dashboard here)*  
-> Example:  
-> ![Dashboard Preview](assets/dashboard-preview.png)
-
----
-
-## ⚙️ Tech Stack  
-
-| Component | Technology |
-|------------|-------------|
-| **Frontend / Dashboard** | Dash + Plotly |
-| **Sentiment Analysis** | NLTK (VADER Sentiment Analyzer) |
-| **Streaming Engine** | PRAW (Python Reddit API Wrapper) |
-| **Data Handling** | Pandas |
-| **Language** | Python 3 |
-
----
 
 ## 🚀 Setup & Installation  
 
