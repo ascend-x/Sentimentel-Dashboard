@@ -11,55 +11,45 @@ import re
 import nltk
 from nltk.corpus import stopwords
 
-# --- NLTK Setup ---
 nltk.download('stopwords')
 STOPWORDS = set(stopwords.words('english'))
-
-# Extend stopwords with additional filler, pronouns, and auxiliaries
-EXTRA_STOPWORDS = set([
-    'he','she','it','they','we','i','you','me','my','your','his','her','their',
-    'is','are','was','were','be','been','am','do','does','did','have','has','had',
+STOPWORDS.update([
+    # Pronouns and basic verbs
+    'he','she','it','they','we','i','you','me','my','your','his','her','their','ours','them','him',
+    'is','are','was','were','be','been','am','do','does','did','have','has','had','having',
     'will','shall','would','should','can','could','may','might','must',
-    'the','a','an','in','on','at','of','for','with','about','as','to','from',
-    'this','that','these','those','and','but','or','if','then','so','because','just','like','also'
+
+    # Articles, prepositions, conjunctions
+    'the','a','an','in','on','at','of','for','with','about','as','to','from','by','and','or','if','then',
+    'so','because','also','just','like','that','this','these','those','there','here','when','where',
+
+    # Conversational junk
+    'get','got','people','think','really','make','made','know','even','say','said','see','go','went',
+    'still','thing','things','back','much','many','lot','well','good','bad','yes','no','time','way',
+    'now','today','something','someone','every','lot','please','need','going','right','sure','come',
+    'take','look','thank','thanks','use','used','using','want','wanted','makes','done','help','actually','post','report',
+
+    # Web and URL noise
+    'http','https','www','com','org','net','amp','reddit','r','t','co','u','s','m','n',
+
+    # Misc filler
+    'one','two','three','first','second','thing','things','even','still','really','much','make',
+    'could','should','would','yes','no','please','kind','right','left','said'
 ])
-STOPWORDS.update(EXTRA_STOPWORDS)
+STOPWORDS = set(map(str.lower, STOPWORDS))
+
 
 # --- CONFIG ---
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.LITERA],
-    title="Reddit Sentiment AI Dashboard",
-    update_title="Updating...",
-    index_string='''
-    <!DOCTYPE html>
-    <html>
-        <head>
-            {%metas%}
-            <title>{%title%}</title>
-            <link rel="icon" type="image/png" sizes="16x16" href="/assets/16x16.png">
-            <link rel="icon" type="image/png" sizes="32x32" href="/assets/32x32.png">
-            <link rel="icon" type="image/png" sizes="96x96" href="/assets/96x96.png">
-            {%favicon%}
-            {%css%}
-        </head>
-        <body>
-            {%app_entry%}
-            <footer>
-                {%config%}
-                {%scripts%}
-                {%renderer%}
-            </footer>
-        </body>
-    </html>
-    '''
+    external_stylesheets=[dbc.themes.CYBORG],
+    title="SentimentPulse Dashboard",
 )
 
 analyzer = SentimentIntensityAnalyzer()
-MAX_DATA_POINTS = 1000
-CSV_FILE_PATH = 'live_reddit_comments.csv'
+MAX_DATA_POINTS = 10000
+CSV_FILE_PATH = 'data/live_reddit_comments.csv'
 
-# --- SENTIMENT ANALYSIS ---
 def get_sentiment(text):
     score = analyzer.polarity_scores(text)['compound']
     text_lower = text.lower()
@@ -73,64 +63,115 @@ def get_sentiment(text):
     if exclamations > 2: score += 0.1 * min(exclamations, 5)
     return 'Positive' if score >= 0.05 else 'Negative' if score <= -0.05 else 'Neutral'
 
-# --- TRENDING & UNIQUE WORDS ---
 def get_trending_words(comments, top_n=10):
     words = []
     for comment in comments:
-        comment_words = re.findall(r'\b\w+\b', comment.lower())
-        words.extend([w for w in comment_words if w not in STOPWORDS])
-    counter = Counter(words)
-    return counter.most_common(top_n)
+        # Keep only alphabetic words with 4+ letters
+        tokens = re.findall(r'\b[a-zA-Z]{4,}\b', comment.lower())
+        clean = [w for w in tokens if w not in STOPWORDS]
+        words.extend(clean)
+    # Return top N trending words
+    return Counter(words).most_common(top_n)
+
 
 def get_unique_words(new_comments, old_comments):
-    new_words = set()
-    for comment in new_comments:
-        new_words.update(re.findall(r'\b\w+\b', comment.lower()))
-    old_words = set()
-    for comment in old_comments:
-        old_words.update(re.findall(r'\b\w+\b', comment.lower()))
-    unique = new_words - old_words
-    return list(unique)[:20]
+    new = set(w for c in new_comments for w in re.findall(r'\b\w+\b', c.lower()))
+    old = set(w for c in old_comments for w in re.findall(r'\b\w+\b', c.lower()))
+    return list(new - old)[:20]
 
-# --- APP LAYOUT ---
+# --- Custom CSS ---
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+<head>
+    {%metas%}
+    <title>{%title%}</title>
+    {%favicon%}
+    {%css%}
+    <style>
+        body {
+            background-color: #0a0f14;
+            font-family: 'Inter', sans-serif;
+            color: #e8e8e8;
+        }
+        .metric-card {
+            background: linear-gradient(145deg,#141c24,#0f1419);
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            padding: 25px;
+            text-align: center;
+            transition: 0.3s;
+        }
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 16px rgba(0,255,255,0.3);
+        }
+        .section-card {
+            background: #10171f;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,255,255,0.05);
+        }
+        .feed-box {
+            border-left: 5px solid #00adb5;
+            background-color: #1a1f26;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    {%app_entry%}
+    <footer>
+        {%config%}
+        {%scripts%}
+        {%renderer%}
+    </footer>
+</body>
+</html>
+'''
+
+# --- LAYOUT ---
 app.layout = dbc.Container([
-    dbc.Row(dbc.Col(html.H1("Reddit Sentiment AI Dashboard", className="text-center mb-4",
-                            style={"font-family":"Montserrat, sans-serif", "color":"#2C3E50"}), width=12)),
-    dcc.Interval(id='interval-component', interval=2000, n_intervals=0),
+    dbc.Row(dbc.Col(html.H2("SentimentPulse",
+                            className="text-center mb-4 text-info fw-bold"), width=12)),
 
-    # KPI Cards
+    dcc.Interval(id='interval-component', interval=3000, n_intervals=0),
+
     dbc.Row([
-        dbc.Col(dbc.Card(dbc.CardBody([html.H6("Total Comments"), html.H2(id="total-comments-kpi")]), color="light", outline=True), width=3),
-        dbc.Col(dbc.Card(dbc.CardBody([html.H6("Positive %"), html.H2(id="positive-pct-kpi")]), color="light", outline=True), width=3),
-        dbc.Col(dbc.Card(dbc.CardBody([html.H6("Negative %"), html.H2(id="negative-pct-kpi")]), color="light", outline=True), width=3),
-        dbc.Col(dbc.Card(dbc.CardBody([html.H6("Neutral %"), html.H2(id="neutral-pct-kpi")]), color="light", outline=True), width=3)
+        dbc.Col(html.Div([html.H6("Total Comments"), html.H2(id="total-comments-kpi")],
+                         className="metric-card"), width=3),
+        dbc.Col(html.Div([html.H6("Positive %"), html.H2(id="positive-pct-kpi", className="text-success")],
+                         className="metric-card"), width=3),
+        dbc.Col(html.Div([html.H6("Negative %"), html.H2(id="negative-pct-kpi", className="text-danger")],
+                         className="metric-card"), width=3),
+        dbc.Col(html.Div([html.H6("Neutral %"), html.H2(id="neutral-pct-kpi", className="text-warning")],
+                         className="metric-card"), width=3)
     ], className="mb-4"),
 
-    # Charts Row
     dbc.Row([
-        dbc.Col(dcc.Graph(id='sentiment-pie-chart', config={'displayModeBar': False}), width=4),
-        dbc.Col(dcc.Graph(id='sentiment-time-series', config={'displayModeBar': False}), width=8)
+        dbc.Col(dcc.Graph(id='sentiment-pie-chart', config={'displayModeBar': False},
+                          style={'backgroundColor':'#10171f'}), width=4),
+        dbc.Col(dcc.Graph(id='sentiment-time-series', config={'displayModeBar': False},
+                          style={'backgroundColor':'#10171f'}), width=8)
     ], className="mb-4"),
 
-    # Trending, Unique, Top Comments
     dbc.Row([
-        dbc.Col(dbc.Card(dbc.CardBody([
-            html.H5("Trending Words", style={"color":"#2980B9"}),
+        dbc.Col(html.Div([
+           html.H5("Trending Words", className="text-info mb-2"),
             dcc.Graph(id='trending-words-bar', config={'displayModeBar': False}),
-            html.H5("Unique Words", style={"color":"#27AE60"}),
-            html.Ul(id='unique-words-list', className="small"),
-            html.H5("Top Comments", style={"color":"#8E44AD"}),
-            html.Ul(id='top-comments-list', className="small")
-        ]), color="light", outline=True, style={"border":"3px solid black"}), width=6),
+        ], className="section-card"), width=6),
 
-        dbc.Col(dbc.Card(dbc.CardBody([
-            html.H5("Live Comment Feed", style={"color":"#34495E"}),
-            html.Div(id='live-comment-feed', style={"maxHeight":"400px","overflowY":"scroll"})
-        ]), color="light", outline=True, style={"border":"3px solid black"}), width=6)
-    ], className="mb-4")
-], fluid=True, style={"backgroundColor":"#F8F9FA"})
+        dbc.Col(html.Div([
+            html.H5("Live Comment Feed", className="text-primary mb-3"),
+            html.Div(id='live-comment-feed', style={"maxHeight":"500px","overflowY":"scroll"})
+        ], className="section-card"), width=6)
+    ])
+], fluid=True)
 
-# --- CALLBACK ---
+# --- CALLBACK LOGIC (same as before) ---
 @app.callback(
     [Output('total-comments-kpi','children'),
      Output('positive-pct-kpi','children'),
@@ -139,106 +180,48 @@ app.layout = dbc.Container([
      Output('sentiment-pie-chart','figure'),
      Output('sentiment-time-series','figure'),
      Output('trending-words-bar','figure'),
-     Output('unique-words-list','children'),
-     Output('top-comments-list','children'),
      Output('live-comment-feed','children')],
     [Input('interval-component','n_intervals')]
 )
 def update_dashboard(n):
-    empty_fig = go.Figure()
-    empty_feed = [dbc.Alert("Waiting for data...", color="info")]
-    empty_return = "0","0.00%","0.00%","0.00%", empty_fig, empty_fig, empty_fig, [], [], empty_feed
-
+    empty = go.Figure()
     try:
         df = pd.read_csv(CSV_FILE_PATH)
-        if df.empty or 'comment' not in df.columns or 'timestamp' not in df.columns:
-            return empty_return
-        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
-        df = df.dropna(subset=['timestamp'])
-    except Exception as e:
-        print("CSV read error:", e)
-        return empty_return
+        if df.empty: raise Exception("No data")
+    except:
+        msg = dbc.Alert("Waiting for data...", color="secondary")
+        return "0","0%","0%","0%",empty,empty,empty,[],[],[msg]
 
-    try:
-        df_recent = df.tail(MAX_DATA_POINTS)
-        df_recent['sentiment'] = df_recent['comment'].apply(get_sentiment)
-        total_comments = len(df_recent)
-        sentiment_counts = df_recent['sentiment'].value_counts()
-        pos_pct = (sentiment_counts.get('Positive',0)/total_comments)*100
-        neg_pct = (sentiment_counts.get('Negative',0)/total_comments)*100
-        neu_pct = (sentiment_counts.get('Neutral',0)/total_comments)*100
-        kpi_total = f"{total_comments:,}"
-        kpi_pos = f"{pos_pct:.2f}%"
-        kpi_neg = f"{neg_pct:.2f}%"
-        kpi_neu = f"{neu_pct:.2f}%"
+    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+    df = df.dropna(subset=['timestamp'])
+    df = df.tail(MAX_DATA_POINTS)
+    df['sentiment'] = df['comment'].apply(get_sentiment)
 
-        # Pie Chart
-        color_map = {'Positive':'#2ECC71','Negative':'#E74C3C','Neutral':'#F1C40F'}
-        pie_fig = go.Figure(data=[go.Pie(
-            labels=sentiment_counts.index,
-            values=sentiment_counts.values,
-            hole=0.4,
-            marker_colors=[color_map[l] for l in sentiment_counts.index]
-        )])
-        pie_fig.update_layout(title="Sentiment Distribution", template='plotly_white', showlegend=True)
+    total = len(df)
+    counts = df['sentiment'].value_counts()
+    pos, neg, neu = counts.get('Positive',0), counts.get('Negative',0), counts.get('Neutral',0)
 
-        # Time Series
-        df_ts = df_recent.set_index('timestamp')
-        df_resampled = df_ts.groupby([pd.Grouper(freq='10s'),'sentiment']).size().unstack(fill_value=0)
-        for s in ['Positive','Negative','Neutral']:
-            if s not in df_resampled.columns:
-                df_resampled[s] = 0
-        time_fig = go.Figure()
-        for s, color in color_map.items():
-            time_fig.add_trace(go.Scatter(
-                x=df_resampled.index,
-                y=df_resampled[s],
-                mode='lines+markers',
-                name=s,
-                line=dict(color=color, width=3),
-                fill='tozeroy'
-            ))
-        time_fig.update_layout(title="Sentiment Over Time", template='plotly_white',
-                               xaxis_title="Time", yaxis_title="Comment Count")
+    pie = px.pie(df, names='sentiment', hole=0.4, color='sentiment',
+                 color_discrete_map={'Positive':'#00ff88','Negative':'#ff4c4c','Neutral':'#f1c40f'})
+    pie.update_layout(template='plotly_dark', title='Sentiment Distribution')
 
-        # Trending Words (filtered)
-        trending_words = get_trending_words(df_recent['comment'].tail(200)) or []
-        if trending_words:
-            words, counts = zip(*trending_words)
-            trending_fig = px.bar(x=words, y=counts, text=counts, labels={'x':'Word','y':'Count'}, title='Trending Words')
-            trending_fig.update_layout(template='plotly_white', title_font_color='#2980B9')
-        else:
-            trending_fig = empty_fig
+    ts = df.groupby([pd.Grouper(key='timestamp', freq='15s'),'sentiment']).size().unstack(fill_value=0)
+    time_fig = go.Figure()
+    for s, c in {'Positive':'#00ff88','Negative':'#ff4c4c','Neutral':'#f1c40f'}.items():
+        time_fig.add_trace(go.Scatter(x=ts.index, y=ts[s], name=s, line=dict(color=c, width=3), fill='tozeroy'))
+    time_fig.update_layout(template='plotly_dark', title="Sentiment Over Time")
 
-        # Unique Words
-        unique_words = get_unique_words(df_recent['comment'].tail(50), df_recent['comment'].tail(200).head(150)) or []
-        unique_list_items = [html.Li(word) for word in unique_words]
+    trending = get_trending_words(df['comment'])
+    tw_fig = px.bar(x=[w for w,_ in trending], y=[c for _,c in trending], title="Trending Words",
+                    text_auto=True, color=[c for _,c in trending], color_continuous_scale='teal')
+    tw_fig.update_layout(template='plotly_dark')
 
-        # Top Comments
-        top_comments = df_recent.sort_values(by='timestamp', ascending=False).head(5)['comment'].tolist()
-        top_comments_items = [html.Li(comment[:200]+"..." if len(comment)>200 else comment) for comment in top_comments]
+    feed = []
+    for _, row in df.tail(10).iloc[::-1].iterrows():
+        color = "success" if row['sentiment']=="Positive" else "danger" if row['sentiment']=="Negative" else "warning"
+        feed.append(html.Div(f"{row['comment'][:250]}...", className="feed-box text-" + color))
 
-        # Live Feed
-        last_comments = df_recent.tail(10).iloc[::-1]
-        feed_elements = []
-        for _, row in last_comments.iterrows():
-            color = "success" if row['sentiment']=="Positive" else "danger" if row['sentiment']=="Negative" else "warning"
-            feed_elements.append(dbc.Alert(f"{row['comment'][:250]}...", color=color, dismissable=False, className="mb-1 small"))
+    return f"{total:,}", f"{(pos/total)*100:.2f}%", f"{(neg/total)*100:.2f}%", f"{(neu/total)*100:.2f}%", pie, time_fig, tw_fig, feed
 
-        # Negative Spike Alert
-        recent_resample = df_ts.groupby([pd.Grouper(freq='30s'),'sentiment']).size().unstack(fill_value=0)
-        if 'Negative' in recent_resample.columns:
-            recent_neg_pct = (recent_resample['Negative'].iloc[-1]/recent_resample.iloc[-1].sum())*100
-            if recent_neg_pct>50:
-                feed_elements.insert(0, dbc.Alert("⚠️ High Negative Sentiment Spike Detected!", color="danger", className="text-center"))
-
-        return kpi_total,kpi_pos,kpi_neg,kpi_neu,pie_fig,time_fig,trending_fig,unique_list_items,top_comments_items,feed_elements
-
-    except Exception as e:
-        print("Callback processing error:", e)
-        return empty_return
-
-# --- RUN APP ---
 if __name__ == '__main__':
-    app.run(debug=True)
-
+    app.run_server(debug=True)
