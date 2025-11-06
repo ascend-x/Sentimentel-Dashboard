@@ -1,5 +1,5 @@
 
-# 🧠 Sentimentel-Dashboard  
+# 🧠 SentimentelPulse
 
 A **real-time Reddit Sentiment Analysis Dashboard** that visualizes emotional trends, live discussions, and keyword insights — all powered by **Python, Dash, and VADER**.
 
