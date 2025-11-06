@@ -30,7 +30,9 @@ reddit = praw.Reddit(
 )
 
 # --- Subreddits to monitor ---
-subreddit = reddit.subreddit("politics+worldnews+society+diseases+environment")
+subreddit = reddit.subreddit(
+    "technology+science+worldnews+AskReddit+todayilearned+funny+movies+music+books+health+environment+space+gaming"
+)
 
 print(f"[+] Streaming comments from r/{subreddit.display_name}")
 print(f"[+] Saving data to {OUTPUT_FILE}\n")
